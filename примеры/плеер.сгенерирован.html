@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pugmk плеер</title>
+  <style>
+    :root {
+      --card-bg: #f3f3f5;
+      --muted: #a9a9ae;
+      --text: #111;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #000;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
+    .card {
+      width: min(92vw, 760px);
+      border-radius: 72px;
+      background: var(--card-bg);
+      padding: 38px 38px 52px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    }
+    .cover {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 52px;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(110% 90% at 50% 52%, rgba(13,24,44,.95) 0%, rgba(89,108,137,.4) 24%, rgba(227,227,236,.72) 58%, rgba(237,237,241,.95) 100%),
+        conic-gradient(from 0deg at 50% 50%,
+          rgba(126,173,225,.33) 0deg,
+          rgba(255,174,202,.2) 34deg,
+          rgba(140,210,255,.26) 66deg,
+          rgba(255,255,255,.2) 100deg,
+          rgba(83,112,150,.45) 146deg,
+          rgba(179,200,238,.3) 190deg,
+          rgba(105,142,182,.4) 236deg,
+          rgba(255,255,255,.17) 280deg,
+          rgba(105,142,182,.34) 320deg,
+          rgba(126,173,225,.33) 360deg);
+      cursor: pointer;
+    }
+    .cover::before {
+      content: "";
+      position: absolute;
+      inset: -18%;
+      background:
+        repeating-conic-gradient(from 0deg,
+          rgba(255,255,255,.0) 0deg 12deg,
+          rgba(150,207,255,.45) 12deg 15deg,
+          rgba(254,195,219,.25) 15deg 18deg,
+          rgba(255,255,255,.0) 18deg 30deg);
+      filter: blur(1px);
+      mix-blend-mode: screen;
+    }
+    .cover::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(65% 24% at 50% 50%, rgba(13,19,36,.75) 0%, rgba(13,19,36,.0) 78%);
+    }
+    h1 {
+      margin: 38px 0 0;
+      text-align: center;
+      font-size: clamp(34px, 4.9vw, 62px);
+      font-weight: 500;
+      line-height: 1.12;
+      color: var(--text);
+    }
+    p {
+      margin: 8px 0 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: clamp(26px, 4.2vw, 52px);
+      font-weight: 400;
+    }
+    .controls {
+      margin-top: 92px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: min(15vw, 140px);
+    }
+    button {
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      padding: 0;
+      color: #000;
+      position: relative;
+      width: min(18vw, 136px);
+      height: min(16vw, 120px);
+    }
+    .ico {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(170deg, #9f9fa4 4%, #000 62%);
+      filter: drop-shadow(0 2px 1px rgba(0,0,0,.2));
+    }
+    .prev .ico {
+      clip-path: polygon(0 10%, 16% 10%, 16% 50%, 54% 10%, 54% 90%, 16% 50%, 92% 10%, 92% 90%, 54% 50%, 16% 90%, 16% 10%, 0 10%);
+    }
+    .play .ico {
+      clip-path: polygon(12% 10%, 92% 50%, 12% 90%);
+    }
+    .next .ico {
+      transform: scaleX(-1);
+      clip-path: polygon(0 10%, 16% 10%, 16% 50%, 54% 10%, 54% 90%, 16% 50%, 92% 10%, 92% 90%, 54% 50%, 16% 90%, 16% 10%, 0 10%);
+    }
+    input[type="file"] { display: none; }
+    .hint {
+      margin-top: 26px;
+      text-align: center;
+      color: #8e8e92;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="cover" id="cover" title="Нажми, чтобы выбрать аудио"></div>
+    <h1 id="title">название трека (не файла)</h1>
+    <p id="artist">артист</p>
+
+    <div class="controls">
+      <button class="prev" id="prev" aria-label="Назад"><span class="ico"></span></button>
+      <button class="play" id="play" aria-label="Пауза/Пуск"><span class="ico"></span></button>
+      <button class="next" id="next" aria-label="Вперед"><span class="ico"></span></button>
+    </div>
+
+    <div class="hint">Кликни по обложке и выбери аудио, название/артиста можно менять в коде.</div>
+    <input id="picker" type="file" accept="audio/*" />
+    <audio id="audio"></audio>
+  </div>
+
+  <script>
+    const title = document.getElementById('title');
+    const artist = document.getElementById('artist');
+    const playBtn = document.getElementById('play');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const cover = document.getElementById('cover');
+    const picker = document.getElementById('picker');
+    const audio = document.getElementById('audio');
+
+    const playlist = [
+      { name: 'название трека (не файла)', artist: 'артист', src: null },
+      { name: 'второй трек', artist: 'артист 2', src: null }
+    ];
+
+    let index = 0;
+    let objectUrl = null;
+
+    function syncMeta() {
+      title.textContent = playlist[index].name;
+      artist.textContent = playlist[index].artist;
+      if (playlist[index].src) {
+        audio.src = playlist[index].src;
+      }
+    }
+
+    function stopIfNeeded() {
+      audio.pause();
+      playBtn.classList.add('play');
+    }
+
+    playBtn.addEventListener('click', async () => {
+      if (!audio.src) {
+        picker.click();
+        return;
+      }
+      if (audio.paused) {
+        await audio.play();
+      } else {
+        audio.pause();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      index = (index - 1 + playlist.length) % playlist.length;
+      stopIfNeeded();
+      syncMeta();
+    });
+
+    nextBtn.addEventListener('click', () => {
+      index = (index + 1) % playlist.length;
+      stopIfNeeded();
+      syncMeta();
+    });
+
+    cover.addEventListener('click', () => picker.click());
+
+    picker.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = URL.createObjectURL(file);
+      playlist[index].src = objectUrl;
+      stopIfNeeded();
+      syncMeta();
+      audio.play().catch(() => {});
+    });
+
+    audio.addEventListener('ended', () => {
+      index = (index + 1) % playlist.length;
+      syncMeta();
+      if (audio.src) audio.play().catch(() => {});
+    });
+
+    syncMeta();
+  </script>
+</body>
+</html>
